@@ -52,5 +52,6 @@ You need to install the following external Python libraries to run the project:
 
 1. **Clone the Repository**
    ```bash
-   git clone [https://github.com/YourUsername/GID-Secure-Terminal.git](https://github.com/YourUsername/GID-Secure-Terminal.git)
+   git clone https://github.com/ahmedfox1/Python-E2EE-Hacker-Chat.git
    cd GID-Secure-Terminal
+   pip install cryptography colorama
