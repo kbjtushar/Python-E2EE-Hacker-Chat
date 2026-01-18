@@ -1,0 +1,35 @@
+# Identity and sensitive files
+identity.pem
+*.pem
+
+# Chat history and logs
+chat_history/
+logs/
+*.log
+
+# Downloads
+downloads/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (optional - remove if you want to track config)
+config.json
