@@ -166,6 +166,31 @@ def handle_client(client, agent_id):
                         offline_mailbox[tid].append(packet_to_send)
                         print_centered(f"[FILE BUFFERED] {agent_id} → {tid}", Fore.YELLOW)
 
+            # Handle voice notes
+            elif command_packet.startswith("[VOICE]"):
+                _, content = command_packet.split("]", 1)
+                target_id, voice_data = content.split("|", 1)
+                
+                targets = [t.strip() for t in target_id.split(",")]
+                
+                for tid in targets:
+                    packet_to_send = f"[VOICE_INCOMING]{agent_id}|{voice_data}"
+                    
+                    if tid in active_agents:
+                        try:
+                            active_agents[tid].send(packet_to_send.encode('utf-8'))
+                            print_centered(f"[VOICE] {agent_id} → {tid}", Fore.MAGENTA)
+                        except:
+                            if tid not in offline_mailbox: 
+                                offline_mailbox[tid] = []
+                            offline_mailbox[tid].append(packet_to_send)
+                            print_centered(f"[VOICE BUFFERED] {agent_id} → {tid}", Fore.YELLOW)
+                    else:
+                        if tid not in offline_mailbox: 
+                            offline_mailbox[tid] = []
+                        offline_mailbox[tid].append(packet_to_send)
+                        print_centered(f"[VOICE BUFFERED] {agent_id} → {tid}", Fore.YELLOW)
+
         except Exception as e:
             logging.error(f"Error handling client {agent_id}: {e}")
             break
@@ -184,7 +209,7 @@ def receive():
     os.system('cls' if os.name == 'nt' else 'clear')
     print("\n" * 2)
     print_centered("╔═══════════════════════════════════════════════╗", Fore.GREEN)
-    print_centered("║   G.I.D SECURE TERMINAL SERVER v2.0 (E2EE)    ║", Fore.GREEN)
+    print_centered("║   G.I.D SECURE TERMINAL SERVER v3.0 (E2EE)    ║", Fore.GREEN)
     print_centered("╚═══════════════════════════════════════════════╝", Fore.GREEN)
     print_centered("-" * 50, Fore.WHITE)
     print_centered(f"[*] LISTENING ON {HOST}:{PORT}", Fore.CYAN)

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  gid-server:
+    build: .
+    container_name: gid-secure-terminal
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./logs:/app/logs
+      - ./config.json:/app/config.json:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - gid-network
+
+networks:
+  gid-network:
+    driver: bridge

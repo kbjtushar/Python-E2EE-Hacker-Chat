@@ -1,2 +1,5 @@
 colorama
 cryptography
+sounddevice
+soundfile
+numpy

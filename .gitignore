@@ -9,6 +9,9 @@ logs/
 
 # Downloads
 downloads/
+exports/
+voice_notes/
+blocklist.json
 
 # Python cache
 __pycache__/

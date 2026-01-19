@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# Logs
+logs/
+*.log
+
+# Identity and sensitive data
+identity.pem
+blocklist.json
+chat_history/
+downloads/
+exports/
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore

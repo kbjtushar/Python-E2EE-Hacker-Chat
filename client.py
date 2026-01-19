@@ -16,6 +16,16 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.fernet import Fernet
 
+# Voice recording imports (optional - graceful degradation)
+try:
+    import sounddevice as sd
+    import soundfile as sf
+    import numpy as np
+    VOICE_AVAILABLE = True
+except ImportError:
+    VOICE_AVAILABLE = False
+    logging.warning("Voice recording not available - install sounddevice, soundfile, numpy")
+
 init(autoreset=True)
 
 # Load configuration
@@ -46,6 +56,7 @@ IDENTITY_FILE = "identity.pem"
 DOWNLOADS_DIR = "downloads"
 HISTORY_DIR = "chat_history"
 BLOCKLIST_FILE = "blocklist.json"
+VOICE_DIR = "voice_notes"
 
 # Setup logging
 os.makedirs("logs", exist_ok=True)
@@ -259,6 +270,114 @@ def export_chat(agent_id, format_type="txt"):
         print_centered(f"[!] EXPORT ERROR: {e}", Fore.RED)
         logging.error(f"Export error: {e}")
 
+# ==================== VOICE NOTES ====================
+
+def record_voice_note(duration=10, sample_rate=44100):
+    """Record voice note"""
+    if not VOICE_AVAILABLE:
+        print_centered("[!] VOICE RECORDING NOT AVAILABLE", Fore.RED)
+        print_centered("[*] Install: pip install sounddevice soundfile numpy", Fore.YELLOW)
+        return None
+    
+    try:
+        print_centered(f"[*] RECORDING FOR {duration} SECONDS...", Fore.CYAN)
+        print_centered("[*] SPEAK NOW", Fore.GREEN, Style.BRIGHT)
+        
+        # Record audio
+        recording = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype='float32')
+        sd.wait()
+        
+        # Save to temporary file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        temp_file = os.path.join(VOICE_DIR, f"voice_{timestamp}.wav")
+        sf.write(temp_file, recording, sample_rate)
+        
+        print_centered(f"[+] RECORDING COMPLETE: {os.path.getsize(temp_file)} bytes", Fore.GREEN)
+        return temp_file
+        
+    except Exception as e:
+        print_centered(f"[!] RECORDING ERROR: {e}", Fore.RED)
+        logging.error(f"Voice recording error: {e}")
+        return None
+
+def encrypt_voice_note(filepath, target_pub_pem):
+    """Encrypt voice note file"""
+    try:
+        with open(filepath, 'rb') as f:
+            audio_data = f.read()
+        
+        # Generate session key
+        session_key = Fernet.generate_key()
+        cipher_suite = Fernet(session_key)
+        encrypted_audio = cipher_suite.encrypt(audio_data)
+        
+        # Encrypt session key with recipient's public key
+        target_pub = serialization.load_pem_public_key(target_pub_pem.encode('utf-8'))
+        encrypted_session_key = target_pub.encrypt(
+            session_key,
+            padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
+        )
+        
+        # Combine: encrypted_key||encrypted_audio
+        blob = encrypted_session_key.hex() + "||" + encrypted_audio.decode('utf-8')
+        
+        # Clean up temp file
+        os.remove(filepath)
+        
+        return blob
+        
+    except Exception as e:
+        print_centered(f"[!] VOICE ENCRYPTION ERROR: {e}", Fore.RED)
+        logging.error(f"Voice encryption error: {e}")
+        return None
+
+def decrypt_voice_note(blob, sender_id):
+    """Decrypt and save voice note"""
+    try:
+        encrypted_key_hex, encrypted_audio = blob.split("||", 1)
+        encrypted_session_key = bytes.fromhex(encrypted_key_hex)
+        
+        # Decrypt session key
+        session_key = private_key.decrypt(
+            encrypted_session_key,
+            padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
+        )
+        
+        # Decrypt audio
+        cipher_suite = Fernet(session_key)
+        audio_data = cipher_suite.decrypt(encrypted_audio.encode('utf-8'))
+        
+        # Save file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = os.path.join(VOICE_DIR, f"{sender_id}_voice_{timestamp}.wav")
+        
+        with open(save_path, 'wb') as f:
+            f.write(audio_data)
+        
+        return save_path, len(audio_data)
+        
+    except Exception as e:
+        print_centered(f"[!] VOICE DECRYPTION ERROR: {e}", Fore.RED)
+        logging.error(f"Voice decryption error: {e}")
+        return None, 0
+
+def play_voice_note(filepath):
+    """Play voice note"""
+    if not VOICE_AVAILABLE:
+        print_centered("[!] VOICE PLAYBACK NOT AVAILABLE", Fore.RED)
+        return
+    
+    try:
+        data, sample_rate = sf.read(filepath)
+        print_centered("[*] PLAYING VOICE NOTE...", Fore.CYAN)
+        sd.play(data, sample_rate)
+        sd.wait()
+        print_centered("[+] PLAYBACK COMPLETE", Fore.GREEN)
+        
+    except Exception as e:
+        print_centered(f"[!] PLAYBACK ERROR: {e}", Fore.RED)
+        logging.error(f"Voice playback error: {e}")
+
 # ==================== PERSISTENT IDENTITY ====================
 
 def derive_agent_id_from_key(pub_key):
@@ -316,25 +435,44 @@ def setup_identity():
     
     if os.path.exists(IDENTITY_FILE):
         print_centered("[*] EXISTING IDENTITY DETECTED", Fore.CYAN)
-        password = input_centered("ENTER IDENTITY PASSWORD: ", Fore.YELLOW)
         
-        private_key = load_identity(password)
-        if private_key is None:
-            print_centered("[!] INVALID PASSWORD OR CORRUPTED IDENTITY", Fore.RED)
-            time.sleep(2)
-            return False
+        import getpass
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            password = getpass.getpass(" " * ((get_width() - 30) // 2) + Fore.YELLOW + "ENTER PASSWORD: " + Style.RESET_ALL)
+            
+            private_key = load_identity(password)
+            if private_key is None:
+                remaining = max_attempts - attempt - 1
+                if remaining > 0:
+                    print_centered(f"[!] INCORRECT PASSWORD ({remaining} attempts remaining)", Fore.RED)
+                    continue
+                else:
+                    print_centered("[!] MAXIMUM ATTEMPTS REACHED", Fore.RED)
+                    return False
+            else:
+                break
     else:
         print_centered("[*] NO IDENTITY FOUND - GENERATING NEW KEYPAIR", Fore.CYAN)
         time.sleep(1)
         
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         
-        password = input_centered("CREATE IDENTITY PASSWORD: ", Fore.YELLOW)
-        confirm = input_centered("CONFIRM PASSWORD: ", Fore.YELLOW)
-        
-        if password != confirm:
-            print_centered("[!] PASSWORDS DO NOT MATCH", Fore.RED)
-            return False
+        import getpass
+        while True:
+            password = getpass.getpass(" " * ((get_width() - 35) // 2) + Fore.YELLOW + "CREATE PASSWORD (min 8 chars): " + Style.RESET_ALL)
+            
+            if len(password) < 8:
+                print_centered("[!] PASSWORD TOO SHORT (minimum 8 characters)", Fore.RED)
+                continue
+            
+            confirm = getpass.getpass(" " * ((get_width() - 30) // 2) + Fore.YELLOW + "CONFIRM PASSWORD: " + Style.RESET_ALL)
+            
+            if password != confirm:
+                print_centered("[!] PASSWORDS DO NOT MATCH", Fore.RED)
+                continue
+            
+            break
         
         if not save_identity(private_key, password):
             return False
@@ -581,6 +719,42 @@ def receive_messages():
                 padding = max(0, (get_width() - len(prompt) - 10) // 2)
                 sys.stdout.write(" " * padding + Fore.YELLOW + prompt)
                 sys.stdout.flush()
+            
+            # Handle incoming voice notes
+            if packet.startswith("[VOICE_INCOMING]"):
+                _, content = packet.split("]", 1)
+                sender, voice_blob = content.split("|", 1)
+                
+                # Check if sender is blocked
+                if is_blocked(sender):
+                    logging.info(f"Blocked voice note from {sender}")
+                    continue
+                
+                play_sound()
+                print("\n")
+                print_centered(f"[VOICE] RECEIVING FROM {sender}...", Fore.MAGENTA)
+                
+                save_path, voice_size = decrypt_voice_note(voice_blob, sender)
+                
+                if save_path:
+                    # Update statistics
+                    update_stats("files_received")
+                    update_stats("bytes_received", voice_size)
+                    
+                    print_centered(f"[+] VOICE NOTE SAVED: {save_path} ({voice_size} bytes)", Fore.GREEN)
+                    save_message_to_history(sender, "[VOICE NOTE RECEIVED]", "received")
+                    
+                    # Auto-play option
+                    if VOICE_AVAILABLE:
+                        play_voice_note(save_path)
+                else:
+                    print_centered("[!] VOICE NOTE RECEIVE FAILED", Fore.RED)
+                
+                print("\n")
+                prompt = "[SECURE INPUT] >> "
+                padding = max(0, (get_width() - len(prompt) - 10) // 2)
+                sys.stdout.write(" " * padding + Fore.YELLOW + prompt)
+                sys.stdout.flush()
 
         except Exception as e:
             logging.error(f"Receive error: {e}")
@@ -656,6 +830,7 @@ def send_messages(target_code):
             print_centered("=== AVAILABLE COMMANDS ===", Fore.CYAN, Style.BRIGHT)
             print_centered("/agents - List online agents", Fore.WHITE)
             print_centered("/sendfile <filepath> - Send encrypted file", Fore.WHITE)
+            print_centered("/record [duration] - Record voice note (default 10s)", Fore.WHITE)
             print_centered("/history [agent-id] - View chat history", Fore.WHITE)
             print_centered("/block <agent-id> - Block an agent", Fore.WHITE)
             print_centered("/unblock <agent-id> - Unblock an agent", Fore.WHITE)
@@ -710,6 +885,47 @@ def send_messages(target_code):
                 export_chat(agent_id, format_type)
             else:
                 print_centered("[!] USAGE: /export <agent-id> [txt|json]", Fore.YELLOW)
+            continue
+        
+        # Voice recording command
+        if msg.lower().startswith('/record'):
+            parts = msg.split()
+            duration = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 10
+            
+            if duration > 60:
+                print_centered("[!] MAXIMUM DURATION IS 60 SECONDS", Fore.RED)
+                continue
+            
+            voice_file = record_voice_note(duration)
+            if voice_file:
+                print_centered(f"[*] ENCRYPTING VOICE NOTE...", Fore.YELLOW)
+                
+                # Get target public key
+                target_public_key_cache = None
+                client.send(f"[GET_KEY]{target_code}".encode('utf-8'))
+                
+                wait_timer = 0
+                while target_public_key_cache is None and wait_timer < 20:
+                    time.sleep(0.1)
+                    wait_timer += 1
+                
+                if target_public_key_cache and target_public_key_cache != "ERROR":
+                    voice_blob = encrypt_voice_note(voice_file, target_public_key_cache)
+                    
+                    if voice_blob:
+                        packet = f"[VOICE]{target_code}|{voice_blob}"
+                        client.send(packet.encode('utf-8'))
+                        
+                        # Update stats
+                        update_stats("files_sent")
+                        update_stats("bytes_sent", len(voice_blob))
+                        
+                        print_centered("[+] VOICE NOTE SENT", Fore.GREEN)
+                        save_message_to_history(target_code, "[VOICE NOTE SENT]", "sent")
+                    else:
+                        print_centered("[!] VOICE ENCRYPTION FAILED", Fore.RED)
+                else:
+                    print_centered("[!] TARGET AGENT NOT AVAILABLE", Fore.RED)
             continue
         
         if msg.lower().startswith('/sendfile '):
